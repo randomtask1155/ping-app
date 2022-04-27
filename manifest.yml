@@ -1,0 +1,11 @@
+---
+applications:
+  - name: ping-app
+    memory: 128M
+    instances: 1
+    buildpack: go_buildpack
+    command: ping-app
+    env:
+      INTERVAL: 1m
+      REMOTE_APP_HOSTNAME: ping-app-a.mydomain.com
+      GOROUTER_ADDRESS: "10.10.10.10"
