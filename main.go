@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -17,7 +19,9 @@ var (
 	pingInterval  string
 	remoteApp     string
 	gorouter      string
+	postBodySize  = 10
 	sleepDuration time.Duration
+	letterRunes   = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
 func init() {
@@ -67,11 +71,27 @@ func doRequest(r *http.Request) error {
 	return debug(httputil.DumpResponse(resp, true))
 }
 
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
 func sendPost(server, hostheader string) error {
-	postBody, _ := json.Marshal(map[string]string{
-		"name":  "Toby",
-		"email": "Toby@example.com",
-	})
+	// postBody, _ := json.Marshal(map[string]string{
+	// 	"name":  "Toby",
+	// 	"email": "Toby@example.com",
+	// })
+
+	pb := fmt.Sprintf("{\"data\": \"")
+	for i := 1; i < postBodySize; i++ {
+		pb += fmt.Sprintf("%s", RandStringRunes(1))
+	}
+	pb += fmt.Sprintf("\"}")
+
+	postBody, _ := json.Marshal(pb)
 	body := bytes.NewBuffer(postBody)
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("https://%s", server), body)
@@ -99,6 +119,35 @@ func ping() {
 	}
 }
 
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	interval := r.FormValue("interval")
+	if interval != "" {
+		pingInterval = interval
+
+		testDuration, err := time.ParseDuration(pingInterval)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Printf("Failed to interval duration.. see values supported in https://pkg.go.dev/time#ParseDuration: %s", err)
+			return
+		}
+		sleepDuration = testDuration
+	}
+	host := r.FormValue("remoteapp")
+	if host != "" {
+		remoteApp = host
+	}
+	pbs := r.FormValue("postbodysize")
+	if pbs != "" {
+		i, err := strconv.Atoi(pbs)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Printf("Failed to parse postbodysize: %s", err)
+			return
+		}
+		postBodySize = i
+	}
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -113,5 +162,6 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	go ping()
 	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/config", configHandler)
 	http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 }

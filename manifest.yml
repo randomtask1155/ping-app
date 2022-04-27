@@ -7,5 +7,5 @@ applications:
     command: ping-app
     env:
       INTERVAL: 1m
-      REMOTE_APP_HOSTNAME: ping-app-a.mydomain.com
+      REMOTE_APP_HOSTNAME: ping-app-b.mydomain.com
       GOROUTER_ADDRESS: "10.10.10.10"
