@@ -146,6 +146,11 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		postBodySize = i
 	}
+
+	g := r.FormValue("gorouter")
+	if g != "" {
+		gorouter = g
+	}
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {

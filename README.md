@@ -63,8 +63,9 @@ cf push ping-app-b
 * interval - sets the interval using format defined in https://pkg.go.dev/time#ParseDuration
 * remoteapp - change which app to pinng to
 * postbodysize - change the amount of asci characters sent to remote app in each request
+* gorouter - change the ip of gorouter app will send posts to
 
 
 ```
-curl 'ping-app-a.mydomain.com/config?interval=1m&remoteapp=ping-app-b.mydomain.com&postbodysize=100'
+curl 'ping-app-a.mydomain.com/config?interval=1m&remoteapp=ping-app-b.mydomain.com&postbodysize=100&gorouter=10.10.10.11'
 ```
