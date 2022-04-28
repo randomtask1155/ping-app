@@ -16,12 +16,14 @@ import (
 )
 
 var (
-	pingInterval  string
-	remoteApp     string
-	gorouter      string
-	postBodySize  = 10
-	sleepDuration time.Duration
-	letterRunes   = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	pingInterval        string
+	remoteApp           string
+	gorouter            string
+	postBodySize        = 10
+	sleepDuration       time.Duration
+	letterRunes         = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	domainStatCounter   = map[string]int{"error": 0, "success": 0}
+	gorouterStatCounter = map[string]int{"error": 0, "success": 0}
 )
 
 func init() {
@@ -103,18 +105,40 @@ func sendPost(server, hostheader string) error {
 	return doRequest(req)
 }
 
+func updateCounter(err error, m map[string]int) {
+	if m["error"] >= 2147483000 || m["success"] >= 2147483000 {
+		fmt.Println("reseting stat counters because count is nearing int max")
+		domainStatCounter = map[string]int{"error": 0, "success": 0}
+		gorouterStatCounter = map[string]int{"error": 0, "success": 0}
+	}
+	if err != nil {
+		m["error"] += 1
+	} else {
+		m["success"] += 1
+	}
+}
+
+func logStats() {
+	fmt.Printf("domain stats: error=%d success=%d\n", domainStatCounter["error"], domainStatCounter["success"])
+	fmt.Printf("gorouter stats: error=%d success=%d\n", gorouterStatCounter["error"], gorouterStatCounter["success"])
+}
+
 func ping() {
 	for {
 		fmt.Printf("Sending POST to %s\n", remoteApp)
 		err := sendPost(remoteApp, remoteApp)
+		updateCounter(err, domainStatCounter)
 		if err != nil {
 			fmt.Printf("Failed sending post: %s\n", err)
 		}
 		fmt.Printf("Sending POST to %s\n", gorouter)
 		err = sendPost(gorouter, remoteApp)
+		updateCounter(err, gorouterStatCounter)
 		if err != nil {
 			fmt.Printf("Failed sending post: %s\n", err)
 		}
+
+		logStats()
 		time.Sleep(sleepDuration)
 	}
 }
@@ -153,6 +177,12 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func resetHandler(w http.ResponseWriter, r *http.Request) {
+	domainStatCounter = map[string]int{"error": 0, "success": 0}
+	gorouterStatCounter = map[string]int{"error": 0, "success": 0}
+	fmt.Println("successfully reset stat counters")
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -168,5 +198,6 @@ func main() {
 	go ping()
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/config", configHandler)
+	http.HandleFunc("/resetcounters", resetHandler)
 	http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 }

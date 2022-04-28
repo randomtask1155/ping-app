@@ -69,3 +69,19 @@ cf push ping-app-b
 ```
 curl 'ping-app-a.mydomain.com/config?interval=1m&remoteapp=ping-app-b.mydomain.com&postbodysize=100&gorouter=10.10.10.11'
 ```
+
+
+## reset stats counters
+
+after each ping iteration the app will logs stats for each flow
+
+```
+   2022-04-28T12:30:54.46-0500 [APP/PROC/WEB/0] OUT domain stats: error=0 success=7
+   2022-04-28T12:30:54.46-0500 [APP/PROC/WEB/0] OUT gorouter stats: error=6 success=1
+```
+
+these stats can be reset using the /resetcounters endpoint
+
+```
+curl ping-app-a.mydomain.com/resetcounters
+```
