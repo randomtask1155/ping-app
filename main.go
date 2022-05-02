@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -19,6 +20,7 @@ var (
 	pingInterval        string
 	remoteApp           string
 	gorouter            string
+	gorouterList        []string
 	postBodySize        = 10
 	sleepDuration       time.Duration
 	letterRunes         = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -44,9 +46,11 @@ func init() {
 	}
 
 	gorouter = os.Getenv("GOROUTER_ADDRESS")
-	if remoteApp == "" {
+	if gorouter == "" {
 		panic("Please set env variable GOROUTER_ADDRESS to be an IP of one gorouter")
 	}
+
+	gorouterList = strings.Split(gorouter, ":")
 }
 
 func debug(data []byte, err error) error {
@@ -60,9 +64,14 @@ func debug(data []byte, err error) error {
 
 func doRequest(r *http.Request) error {
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives:   true,
+		MaxIdleConnsPerHost: -1,
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   5 * time.Second,
+	}
 
 	resp, err := client.Do(r)
 	if err != nil {
@@ -131,11 +140,14 @@ func ping() {
 		if err != nil {
 			fmt.Printf("Failed sending post: %s\n", err)
 		}
-		fmt.Printf("Sending POST to %s\n", gorouter)
-		err = sendPost(gorouter, remoteApp)
-		updateCounter(err, gorouterStatCounter)
-		if err != nil {
-			fmt.Printf("Failed sending post: %s\n", err)
+
+		for _, g := range gorouterList {
+			fmt.Printf("Sending POST to %s\n", g)
+			err = sendPost(g, remoteApp)
+			updateCounter(err, gorouterStatCounter)
+			if err != nil {
+				fmt.Printf("Failed sending post to gorouter: %s: %s\n", g, err)
+			}
 		}
 
 		logStats()
